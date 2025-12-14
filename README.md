@@ -1,73 +1,22 @@
-# Drag-and-drop
+# Drag-and-Drop Playground
 
-Abstract
+A small drag-and-drop editor PoC.
 
-Drag-and-Drop Playground (PoC)
-Description
+## Features
 
-A simple Proof of Concept web app that demonstrates a basic drag-and-drop editor built with plain JavaScript.
+- Drag text, image and shape elements to the playground
+- Move elements with mouse
+- Edit selected element properties
+- SVG shape with editable path and fill color
+- Save and load state using localStorage
 
-Users can drag elements to a playground area, move them, select them, and edit basic properties.
+## Tech Stack
 
-This project is intentionally minimal and simple designed.
+- HTML
+- CSS
+- JavaScript
+- jQuery
 
-Features
+## Run
 
-Drag & drop elements into the playground
-
-Move elements freely inside the playground
-
-Select elements by click
-
-Edit properties of the selected element
-
-Supported elements
-
-Text
-
-Image
-
-Shape (svg)
-
-Text properties
-
-Font size
-
-Color
-
-Bold
-
-Italic
-
-Underline
-
-Tech Stack
-
-HTML
-
-CSS
-
-Vanilla JavaScript
-
-No frameworks or external libraries.
-
-Project Structure
-
-project/
-├── index.html
-├── style.css
-├── script.js
-└── README.md
-
-How to Run
-Clone the repository:
-git clone https://github.com/catphone50/Drag-and-drop.git
-Open index.html in a browser
-
-Notes
-
-No persistence
-
-No mobile support
-
-No advanced layout features
+Just open `index.html` in a browser.

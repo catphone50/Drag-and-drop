@@ -1,19 +1,25 @@
-const tools = document.querySelectorAll(".tool");
-const playground = document.querySelector(".playground");
-const properties = document.querySelector("#properties");
+const $tools = $(".tool");
+const $playground = $(".playground");
+const $properties = $("#properties");
 
 let selectedElement = null;
 let counter = 0;
-
-const handleDragStart = (e) => {
-  e.dataTransfer.setData("type", e.currentTarget.dataset.type);
+let dragState = {
+  dragging: false,
+  $el: null,
+  offsetX: 0,
+  offsetY: 0,
 };
 
-const handleDragDrop = (e) => {
+$tools.on("dragstart", function (e) {
+  e.originalEvent.dataTransfer.setData("type", $(this).data("type"));
+});
+
+const handleDragDrop = function (e) {
   e.preventDefault();
 
-  const type = e.dataTransfer.getData("type");
-  const rect = playground.getBoundingClientRect(); // get size and position
+  const type = e.originalEvent.dataTransfer.getData("type");
+  const rect = this.getBoundingClientRect();
 
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
@@ -21,468 +27,346 @@ const handleDragDrop = (e) => {
   createElement(type, x, y);
 };
 
-playground.addEventListener("dragover", (e) => {
+$playground.on("dragover", function (e) {
   e.preventDefault();
 });
-
-tools.forEach((tool) => {
-  tool.addEventListener("dragstart", handleDragStart);
-});
-
-playground.addEventListener("drop", handleDragDrop);
+$playground.on("drop", handleDragDrop);
 
 const createElement = (type, x, y) => {
   counter++;
 
-  const wrapper = document.createElement("div");
-  wrapper.className = "playground-item";
-  wrapper.dataset.type = type;
-  wrapper.style.left = x + "px";
-  wrapper.style.top = y + "px";
-  wrapper.style.width = "100px";
-  wrapper.style.height = "100px";
+  const $wrapper = $("<div>")
+    .addClass("playground-item")
+    .data("type", type)
+    .css({
+      left: x,
+      top: y,
+      width: 100,
+      height: 100,
+      position: "absolute",
+    });
 
-  let content = null;
+  let $content;
 
   if (type === "text") {
-    content = document.createElement("p");
-    content.className = "text-content";
-    content.innerText = `Text ${counter}`;
+    $content = $("<p>").addClass("text-content").text(`Text ${counter}`);
   }
 
   if (type === "image") {
-    content = document.createElement("img");
-    content.draggable = false;
-    const width = 100;
-    const height = 100;
-    content.src = `https://picsum.photos/${width}/${height}?random=${Math.random()}`;
+    $content = $("<img>", {
+      draggable: false,
+      src: `https://picsum.photos/100/100?random=${Math.random()}`,
+    });
   }
 
   if (type === "shape") {
-    content = document.createElementNS("http://www.w3.org/2000/svg", "svg"); // create svg not html
-    content.setAttribute("width", "100");
-    content.setAttribute("height", "100");
-    content.setAttribute("viewBox", "0 0 100 100");
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    $(svg).attr({
+      width: 100,
+      height: 100,
+      viewBox: "0 0 100 100",
+    });
 
     const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", "M10 10 H90 V90 H10 Z");
-    path.setAttribute("fill", "#000000");
+    $(path).attr({
+      d: "M10 10 H90 V90 H10 Z",
+      fill: "#000000",
+    });
 
-    content.appendChild(path);
+    svg.appendChild(path);
+    $content = $(svg);
   }
-  console.log(content);
 
-  wrapper.appendChild(content);
+  $wrapper.append($content);
+  $playground.append($wrapper);
 
-  playground.appendChild(wrapper);
+  makeDraggable($wrapper);
 
-  makeDraggable(wrapper);
-
-  wrapper.addEventListener("click", (e) => {
+  $wrapper.on("click", function (e) {
     e.stopPropagation();
-    selectElement(wrapper);
+    selectElement(this);
   });
 
-  return wrapper;
+  return $wrapper;
 };
 
-const makeDraggable = (element) => {
-  let offsetX = 0;
-  let offsetY = 0;
-  let isDragging = false;
+const makeDraggable = ($el) => {
+  $el.on("mousedown", function (e) {
+    dragState.dragging = true;
+    dragState.$el = $el;
+    dragState.offsetX = e.offsetX;
+    dragState.offsetY = e.offsetY;
 
-  element.addEventListener("mousedown", (e) => {
-    isDragging = true;
-    offsetX = e.offsetX;
-    offsetY = e.offsetY;
-    selectElement(element);
-  });
-
-  document.addEventListener("mousemove", (e) => {
-    if (!isDragging) return;
-
-    const rect = playground.getBoundingClientRect();
-
-    let left = e.clientX - rect.left - offsetX;
-    let top = e.clientY - rect.top - offsetY;
-
-    left = Math.max(
-      0,
-      Math.min(left, playground.clientWidth - element.offsetWidth)
-    );
-    top = Math.max(
-      0,
-      Math.min(top, playground.clientHeight - element.offsetHeight)
-    );
-
-    element.style.left = left + "px";
-    element.style.top = top + "px";
-  });
-
-  document.addEventListener("mouseup", () => {
-    isDragging = false;
+    selectElement(this);
   });
 };
 
-const selectElement = (element) => {
+$(document).on("mousemove", function (e) {
+  if (!dragState.dragging || !dragState.$el) return;
+
+  const rect = $playground[0].getBoundingClientRect();
+
+  let left = e.clientX - rect.left - dragState.offsetX;
+  let top = e.clientY - rect.top - dragState.offsetY;
+
+  left = Math.max(
+    0,
+    Math.min(left, $playground.width() - dragState.$el.outerWidth())
+  );
+
+  top = Math.max(
+    0,
+    Math.min(top, $playground.height() - dragState.$el.outerHeight())
+  );
+
+  dragState.$el.css({ left, top });
+});
+
+$(document).on("mouseup", function () {
+  dragState.dragging = false;
+  dragState.$el = null;
+});
+
+const selectElement = (el) => {
   clearSelection();
-  element.classList.add("selected");
-  selectedElement = element;
-  showProperties(element);
+  $(el).addClass("selected");
+  selectedElement = el;
+  showProperties(el);
 };
 
 const clearSelection = () => {
-  document
-    .querySelectorAll(".playground-item")
-    .forEach((item) => item.classList.remove("selected"));
+  $(".playground-item").removeClass("selected");
 };
 
-document.addEventListener("click", (element) => {
-  const isInsideProperties = document
-    .querySelector(".properties")
-    .contains(element.target);
+$(document).on("click", function (e) {
+  if ($(e.target).closest(".properties").length) return;
 
-  if (isInsideProperties) return;
   clearSelection();
-  properties.textContent = "Select an element";
+  $properties.text("Select an element");
   selectedElement = null;
 });
 
-const buildText = (element) => {
-  const wrapper = element;
-  const textEl = wrapper.querySelector(".text-content");
-  if (!textEl) return;
-  const styles = window.getComputedStyle(textEl);
-  return `
-      <div class="prop-group">
-        <label>Text</label>
-        <input type="text"
-               data-prop="text"
-               value="${textEl.textContent}">
-      </div>
+const buildText = (el) => {
+  const $text = $(el).find(".text-content");
+  const styles = window.getComputedStyle($text[0]);
+  const currentFont = styles.fontFamily.replace(/['"]/g, "");
 
-<div class="prop-group">
-        <label>Font size (px)</label>
-        <input type="number"
-               data-prop="fontSize"
-               value="${parseInt(styles.fontSize, 10)}">
-      </div>
-
-      <div class="prop-group">
-        <label>Font family</label>
-        <select data-prop="fontFamily">
-          <option value="Arial">Arial</option>
-          <option value="Times New Roman">Times New Roman</option>
-          <option value="Courier New">Courier New</option>
-        </select>
-      </div>
-
-      <div class="prop-group">
-  <label>Style</label>
-  <div class="text-style">
-    <label>
-      <input type="checkbox" data-prop="bold"> Bold
-    </label>
-
-    <label>
-      <input type="checkbox" data-prop="italic"> Italic
-    </label>
-
-    <label>
-      <input type="checkbox" data-prop="underline"> Underline
-    </label>
-  </div>
-</div>
-    `;
-};
-
-const buildImage = (element) => {
-  const img = element.querySelector("img");
-  if (!img) return "";
+  const option = (name) =>
+    `<option ${currentFont.includes(name) ? "selected" : ""}>${name}</option>`;
 
   return `
     <div class="prop-group">
-      <label>Image source</label>
-      <input
-        type="text"
-        data-prop="src"
-        value="${img.src}"
+      <label>Text</label>
+      <input type="text" data-prop="text" value="${$text.text()}">
+    </div>
 
-      />
+    <div class="prop-group">
+      <label>Font size</label>
+      <input type="number" data-prop="fontSize" value="${parseInt(
+        styles.fontSize
+      )}">
+    </div>
+
+    <div class="prop-group">
+      <label>Font family</label>
+      <select data-prop="fontFamily">
+        ${option("Arial")}
+        ${option("Times New Roman")}
+        ${option("Courier New")}
+      </select>
+    </div>
+
+    <div class="prop-group">
+      <label><input type="checkbox" data-prop="bold" ${
+        styles.fontWeight === "700" || styles.fontWeight === "bold"
+          ? "checked"
+          : ""
+      }> Bold</label>
+
+      <label><input type="checkbox" data-prop="italic" ${
+        styles.fontStyle === "italic" ? "checked" : ""
+      }> Italic</label>
+
+      <label><input type="checkbox" data-prop="underline" ${
+        styles.textDecoration.includes("underline") ? "checked" : ""
+      }> Underline</label>
     </div>
   `;
 };
 
-const buildShape = (element) => {
-  const path = element.querySelector("path");
-  if (!path) return "";
+const buildImage = (el) => {
+  return `
+    <div class="prop-group">
+      <label>Image src</label>
+      <input type="text" data-prop="src" value="${$(el)
+        .find("img")
+        .attr("src")}">
+    </div>
+  `;
+};
+
+const buildShape = (el) => {
+  const $path = $(el).find("path");
 
   return `
     <div class="prop-group">
-      <label>SVG path (d)</label>
-      <textarea
-        data-prop="path"
-        rows="4"
-      >${path.getAttribute("d")}</textarea>
+      <label>SVG path</label>
+      <textarea data-prop="path">${$path.attr("d")}</textarea>
     </div>
 
-   <div class="prop-group">
+    <div class="prop-group">
       <label>Fill</label>
-      <input type="color" data-prop="fill" value="${
-        path.getAttribute("fill") || "#000000"
-      }">
+      <input type="color" data-prop="fill" value="${$path.attr("fill")}">
     </div>
   `;
 };
 
-const showProperties = (element) => {
-  const type = element.dataset.type;
+const showProperties = (el) => {
+  const type = $(el).data("type");
 
   let html = `
-     <div class="prop-group">
+    <div class="prop-group">
       <label>Width</label>
-      <input type="number" data-prop="width" value="${element.offsetWidth}">
+      <input type="number" data-prop="width" value="${$(el).outerWidth()}">
     </div>
 
     <div class="prop-group">
       <label>Height</label>
-      <input type="number" data-prop="height" value="${element.offsetHeight}">
+      <input type="number" data-prop="height" value="${$(el).outerHeight()}">
     </div>
-   `;
+  `;
 
-  if (type === "text") {
-    const textProps = buildText(element);
-    if (textProps) html += textProps;
-  }
-
-  if (type === "image") {
-    html += buildImage(element);
-  }
+  if (type === "text") html += buildText(el);
+  if (type === "image") html += buildImage(el);
+  if (type === "shape") html += buildShape(el);
 
   html += `
-  <div class="prop-group danger">
-    <button id="deleteElement">Delete element</button>
-  </div>
-`;
-  if (type === "shape") {
-    html += buildShape(element);
-  }
+    <div class="prop-group danger">
+      <button id="deleteElement">Delete element</button>
+    </div>
+  `;
 
-  properties.innerHTML = html;
-
-  if (type === "text") {
-    const textEl = element.querySelector(".text-content");
-    const styles = window.getComputedStyle(textEl);
-    const select = properties.querySelector('[data-prop="fontFamily"]');
-    select.value = styles.fontFamily.replace(/["']/g, "");
-  }
-
-  properties.addEventListener("click", (e) => {
-    if (e.target.id !== "deleteElement") return;
-    if (!selectedElement) return;
-
-    selectedElement.remove();
-    selectedElement = null;
-    properties.textContent = "Select an element";
-  });
+  $properties.html(html);
 };
 
-const resizeContent = (wrapper) => {
-  const width = wrapper.offsetWidth;
-  const height = wrapper.offsetHeight;
-
-  const type = wrapper.dataset.type;
-
-  if (type === "image") {
-    const img = wrapper.querySelector("img");
-    img.style.width = "100%";
-    img.style.height = "100%";
-    img.style.objectFit = "cover";
-  }
-
-  if (type === "shape") {
-    const svg = wrapper.querySelector("svg");
-    svg.setAttribute("width", width);
-    svg.setAttribute("height", height);
-
-    const svgRect = svg.querySelector("path");
-    svgRect.setAttribute("width", width);
-    svgRect.setAttribute("height", height);
-  }
-
-  if (type === "text") {
-    const text = wrapper.querySelector(".text-content");
-    text.style.width = "100%";
-    text.style.height = "100%";
-  }
-};
-
-properties.addEventListener("input", (e) => {
+$properties.on("input", "[data-prop]", function () {
   if (!selectedElement) return;
 
-  const prop = e.target.dataset.prop;
-  if (!prop) return;
+  const prop = $(this).data("prop");
+  const $el = $(selectedElement);
+  const type = $el.data("type");
 
-  if (prop === "width") {
-    selectedElement.style.width = e.target.value + "px";
-    resizeContent(selectedElement);
+  if (prop === "width") $el.css("width", $(this).val());
+  if (prop === "height") $el.css("height", $(this).val());
+
+  if (type === "text") {
+    const $text = $el.find(".text-content");
+
+    if (prop === "text") $text.text($(this).val());
+    if (prop === "fontSize") $text.css("font-size", $(this).val() + "px");
+    if (prop === "fontFamily") $text.css("font-family", $(this).val());
+    if (prop === "bold")
+      $text.css("font-weight", this.checked ? "bold" : "normal");
+    if (prop === "italic")
+      $text.css("font-style", this.checked ? "italic" : "normal");
+    if (prop === "underline")
+      $text.css("text-decoration", this.checked ? "underline" : "none");
   }
 
-  if (prop === "height") {
-    selectedElement.style.height = e.target.value + "px";
-    resizeContent(selectedElement);
+  if (type === "image" && prop === "src") {
+    $el.find("img").attr("src", $(this).val());
   }
 
-  if (selectedElement.dataset.type === "text") {
-    const textEl = selectedElement.querySelector(".text-content");
+  if (type === "shape") {
+    const $path = $el.find("path");
 
-    if (prop === "text") {
-      textEl.textContent = e.target.value;
-    }
-
-    if (prop === "fontSize") {
-      textEl.style.fontSize = e.target.value + "px";
-    }
-
-    if (prop === "fontFamily") {
-      textEl.style.fontFamily = e.target.value;
-    }
-    if (prop === "bold") {
-      textEl.style.fontWeight = e.target.checked ? "bold" : "normal";
-    }
-
-    if (prop === "italic") {
-      textEl.style.fontStyle = e.target.checked ? "italic" : "normal";
-    }
-
-    if (prop === "underline") {
-      textEl.style.textDecoration = e.target.checked ? "underline" : "none";
-    }
-  }
-
-  if (selectedElement.dataset.type === "image" && prop === "src") {
-    const img = selectedElement.querySelector("img");
-    if (img) img.src = e.target.value;
-  }
-
-  if (selectedElement.dataset.type === "shape") {
-    const path = selectedElement.querySelector("path");
-    if (!path) return;
-
-    if (prop === "path") {
-      try {
-        path.setAttribute("d", e.target.value);
-      } catch (e) {
-        console.warn("Invalid SVG path");
-      }
-    }
-
-    if (prop === "fill") {
-      path.setAttribute("fill", e.target.value);
-    }
+    if (prop === "path") $path.attr("d", $(this).val());
+    if (prop === "fill") $path.attr("fill", $(this).val());
   }
 });
 
-const getState = () => {
-  const items = document.querySelectorAll(".playground-item");
+$properties.on("click", "#deleteElement", function () {
+  if (!selectedElement) return;
 
-  return {
-    elements: Array.from(items).map((item) => {
-      const type = item.dataset.type;
+  $(selectedElement).remove();
+  selectedElement = null;
+  $properties.text("Select an element");
+});
+
+const getState = () => ({
+  elements: $(".playground-item")
+    .toArray()
+    .map((el) => {
+      const $el = $(el);
+      const type = $el.data("type");
 
       const base = {
         type,
-        x: parseInt(item.style.left),
-        y: parseInt(item.style.top),
-        width: item.offsetWidth,
-        height: item.offsetHeight,
+        x: parseInt($el.css("left")),
+        y: parseInt($el.css("top")),
+        width: $el.outerWidth(),
+        height: $el.outerHeight(),
         props: {},
       };
 
       if (type === "text") {
-        const text = item.querySelector(".text-content");
+        const $t = $el.find(".text-content");
         base.props = {
-          text: text.textContent,
-          fontSize: text.style.fontSize,
-          fontFamily: text.style.fontFamily,
-          fontWeight: text.style.fontWeight,
-          fontStyle: text.style.fontStyle,
-          textDecoration: text.style.textDecoration,
+          text: $t.text(),
+          fontSize: $t.css("font-size"),
+          fontFamily: $t.css("font-family"),
+          fontWeight: $t.css("font-weight"),
+          fontStyle: $t.css("font-style"),
+          textDecoration: $t.css("text-decoration"),
         };
       }
 
       if (type === "image") {
-        base.props = {
-          src: item.querySelector("img").src,
-        };
+        base.props.src = $el.find("img").attr("src");
       }
 
       if (type === "shape") {
-        const path = item.querySelector("path");
+        const $p = $el.find("path");
         base.props = {
-          path: path.getAttribute("d"),
-          fill: path.getAttribute("fill"),
+          path: $p.attr("d"),
+          fill: $p.attr("fill"),
         };
       }
 
       return base;
     }),
-  };
-};
+});
 
-const saveState = () => {
-  const state = getState();
-  localStorage.setItem("playgroundState", JSON.stringify(state));
-};
+$("#save").on("click", function () {
+  localStorage.setItem("playgroundState", JSON.stringify(getState()));
+});
 
-document.getElementById("save").addEventListener("click", saveState);
-
-const loadState = () => {
+$("#load").on("click", function () {
   const raw = localStorage.getItem("playgroundState");
   if (!raw) return;
 
+  $playground.empty();
   const state = JSON.parse(raw);
-  playground.innerHTML = "";
 
   state.elements.forEach((el) => {
-    const wrapper = createElement(el.type, el.x, el.y);
-    wrapper.style.width = el.width + "px";
-    wrapper.style.height = el.height + "px";
+    const $w = createElement(el.type, el.x, el.y);
+    $w.css({ width: el.width, height: el.height });
 
     if (el.type === "text") {
-      const text = wrapper.querySelector(".text-content");
-      Object.assign(text.style, {
-        fontSize: el.props.fontSize,
-        fontFamily: el.props.fontFamily,
-        fontWeight: el.props.fontWeight,
-        fontStyle: el.props.fontStyle,
-        textDecoration: el.props.textDecoration,
-      });
-      text.textContent = el.props.text;
+      const $t = $w.find(".text-content");
+      Object.assign($t[0].style, el.props);
+      $t.text(el.props.text);
     }
 
     if (el.type === "image") {
-      wrapper.querySelector("img").src = el.props.src;
+      $w.find("img").attr("src", el.props.src);
     }
 
     if (el.type === "shape") {
-      const path = wrapper.querySelector("path");
-      path.setAttribute("d", el.props.path);
-      path.setAttribute("fill", el.props.fill);
+      const $p = $w.find("path");
+      $p.attr(el.props);
     }
-
-    resizeContent(wrapper);
   });
-};
 
-const loadBtn = document.getElementById("load");
-
-loadBtn.addEventListener("click", () => {
-  loadState();
+  counter = state.elements.length;
 });
-
-const updateLoadButton = () => {
-  loadBtn.disabled = !localStorage.getItem("playgroundState");
-};
-
-updateLoadButton();
