@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drag and Drop</title>
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="app">
+      <div class="sidebar">
+        <h3>Elements</h3>
+        <div class="tool" data-type="text" draggable="true">
+          <p class="text-content">Text 1</p>
+        </div>
+        <div class="tool" data-type="image" draggable="true">Image</div>
+        <div class="tool" data-type="shape" draggable="true">Shape</div>
+        <button id="save">Save</button>
+        <button id="load">Load</button>
+      </div>
+
+      <div class="playground">Drop elements here</div>
+
+      <div class="properties">
+        <h3>Properties</h3>
+        <div id="properties">Select element</div>
+      </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>
